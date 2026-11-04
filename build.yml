@@ -1,0 +1,19 @@
+name: build
+on: [workflow_dispatch]
+env:
+  DEFS: --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - run: flutter create --platforms=android --project-name=kin .
+      - run: sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/><application|' android/app/src/main/AndroidManifest.xml
+      - run: flutter pub get
+      - run: flutter build apk --release $DEFS
+      - uses: actions/upload-artifact@v4
+        with: { name: kin-android-apk, path: build/app/outputs/flutter-apk/app-release.apk }
