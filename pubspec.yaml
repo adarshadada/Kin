@@ -1,5 +1,5 @@
 name: kin
-description: Social app for Android and Windows.
+description: Social app for Android.
 publish_to: none
 version: 1.0.0+1
 environment:
@@ -9,5 +9,11 @@ dependencies:
     sdk: flutter
   supabase_flutter: ^2.5.0
   image_picker: ^1.1.2
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.1
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon.png
 flutter:
   uses-material-design: true

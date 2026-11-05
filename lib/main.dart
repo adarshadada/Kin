@@ -1,20 +1,36 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+const kUrl = 'https://gkpjicnihgicrsndjltl.supabase.co';
+const kKey = 'sb_publishable_cx1YkMueniFpjQJTk-J7AQ_64LGWzos';
+const teal = Color(0xFF0E7C66);
+const lime = Color(0xFFB8F34A);
+const ink = Color(0xFF0B0B0B);
 
 SupabaseClient get db => Supabase.instance.client;
 String get me => db.auth.currentUser!.id;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-      url: const String.fromEnvironment('SUPABASE_URL'),
-      anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'));
+  await Supabase.initialize(url: kUrl, anonKey: kKey);
   runApp(const KinApp());
 }
 
-void toast(BuildContext c, Object e) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(
-    content: Text(e is String ? e : e is AuthException ? e.message : e is PostgrestException ? e.message : 'Request failed. Check your connection.')));
+String errText(Object e) {
+  if (e is String) return e;
+  if (e is AuthException) return e.message.contains('Database error') ? 'That username is taken or invalid. Try another.' : e.message;
+  if (e is PostgrestException) return e.message;
+  return 'Request failed. Check your connection.';
+}
+
+void toast(BuildContext c, Object e) {
+  ScaffoldMessenger.of(c)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, content: Text(errText(e))));
+}
 
 String stamp(String s) {
   final d = DateTime.parse(s).toLocal();
@@ -22,28 +38,101 @@ String stamp(String s) {
   return '${d.year}-${p(d.month)}-${p(d.day)} ${p(d.hour)}:${p(d.minute)}';
 }
 
+class KinLogo extends StatelessWidget {
+  final double size;
+  const KinLogo({super.key, this.size = 40});
+  @override
+  Widget build(BuildContext c) => SizedBox(width: size, height: size, child: CustomPaint(painter: _LogoPainter()));
+}
+
+class _LogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas c, Size s) {
+    final u = s.width / 32;
+    c.drawRRect(RRect.fromRectAndRadius(Offset.zero & s, Radius.circular(9.5 * u)), Paint()..color = lime);
+    final path = Path();
+    for (var i = 0; i <= 80; i++) {
+      final x = (8 + 16 * i / 80) * u, y = (16 - 3 * math.sin(4 * math.pi * i / 80)) * u;
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    c.drawPath(path, Paint()..color = ink..style = PaintingStyle.stroke..strokeWidth = 2.3 * u..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+class Avatar extends StatelessWidget {
+  final String name;
+  final double r;
+  const Avatar(this.name, {super.key, this.r = 18});
+  @override
+  Widget build(BuildContext c) {
+    final cs = Theme.of(c).colorScheme;
+    return CircleAvatar(
+        radius: r,
+        backgroundColor: cs.primaryContainer,
+        child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: TextStyle(color: cs.onPrimaryContainer, fontWeight: FontWeight.w700, fontSize: r * 0.9)));
+  }
+}
+
+class Empty extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const Empty(this.icon, this.text, {super.key});
+  @override
+  Widget build(BuildContext c) => Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 40, color: Theme.of(c).colorScheme.outline),
+        const SizedBox(height: 12),
+        Text(text, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(c).colorScheme.onSurfaceVariant)),
+      ]));
+}
+
+class Reveal extends StatelessWidget {
+  final Widget child;
+  const Reveal({super.key, required this.child});
+  @override
+  Widget build(BuildContext c) => TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      builder: (_, v, w) => Opacity(opacity: v, child: Transform.translate(offset: Offset(0, 10 * (1 - v)), child: w)),
+      child: child);
+}
+
 class KinApp extends StatelessWidget {
   const KinApp({super.key});
   ThemeData _t(Brightness b) {
-    final r = RoundedRectangleBorder(borderRadius: BorderRadius.circular(8));
+    final dark = b == Brightness.dark;
+    final cs = ColorScheme.fromSeed(seedColor: teal, brightness: b);
+    final line = dark ? const Color(0xFF26302C) : const Color(0xFFE2E5E0);
+    final bg = dark ? const Color(0xFF0F1412) : const Color(0xFFF6F7F4);
+    final surface = dark ? const Color(0xFF171E1B) : Colors.white;
+    final r = BorderRadius.circular(8);
     return ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF0E7C66),
-        brightness: b,
-        inputDecorationTheme: InputDecorationTheme(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-        filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(shape: r)),
-        outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(shape: r)),
-        cardTheme: CardThemeData(shape: r, elevation: 0, margin: const EdgeInsets.symmetric(vertical: 6)));
+      useMaterial3: true,
+      colorScheme: cs,
+      scaffoldBackgroundColor: bg,
+      appBarTheme: AppBarTheme(backgroundColor: bg, surfaceTintColor: Colors.transparent, elevation: 0, scrolledUnderElevation: 0, centerTitle: false),
+      cardTheme: CardThemeData(color: surface, elevation: 0, margin: const EdgeInsets.symmetric(vertical: 6), shape: RoundedRectangleBorder(borderRadius: r, side: BorderSide(color: line))),
+      inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: surface, border: OutlineInputBorder(borderRadius: r, borderSide: BorderSide(color: line)), enabledBorder: OutlineInputBorder(borderRadius: r, borderSide: BorderSide(color: line))),
+      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size(48, 48), shape: RoundedRectangleBorder(borderRadius: r))),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48), side: BorderSide(color: line), shape: RoundedRectangleBorder(borderRadius: r))),
+      navigationBarTheme: NavigationBarThemeData(backgroundColor: surface, surfaceTintColor: Colors.transparent, indicatorColor: cs.primaryContainer),
+      navigationRailTheme: NavigationRailThemeData(backgroundColor: surface, indicatorColor: cs.primaryContainer),
+      dividerColor: line,
+    );
   }
 
   @override
   Widget build(BuildContext c) => MaterialApp(
         title: 'Kin',
+        debugShowCheckedModeBanner: false,
         theme: _t(Brightness.light),
         darkTheme: _t(Brightness.dark),
-        home: StreamBuilder<AuthState>(
-            stream: db.auth.onAuthStateChange,
-            builder: (c, _) => db.auth.currentSession == null ? const AuthPage() : const Shell()),
+        home: StreamBuilder<AuthState>(stream: db.auth.onAuthStateChange, builder: (c, _) => db.auth.currentSession == null ? const AuthPage() : const Shell()),
       );
 }
 
@@ -55,8 +144,10 @@ class AuthPage extends StatefulWidget {
 
 class _AuthState extends State<AuthPage> {
   final email = TextEditingController(), pass = TextEditingController(), user = TextEditingController(), code = TextEditingController();
-  int mode = 0; // 0 sign in, 1 sign up, 2 confirm email with code, 3 reset password with code
-  bool busy = false;
+  int mode = 0; // 0 sign in, 1 sign up, 2 confirm email code, 3 reset password code
+  bool busy = false, show = false;
+  static const titles = ['Welcome back', 'Create your account', 'Check your email', 'Choose a new password'];
+  static const labels = ['Sign in', 'Create account', 'Confirm email', 'Set password'];
 
   Future<void> _run(Future<void> Function() f) async {
     setState(() => busy = true);
@@ -70,6 +161,7 @@ class _AuthState extends State<AuthPage> {
 
   Future<void> _go() => _run(() async {
         final e = email.text.trim(), u = user.text.trim().toLowerCase(), t = code.text.trim();
+        if (e.isEmpty) return toast(context, 'Enter your email.');
         if (mode == 1) {
           if (!RegExp(r'^[a-z0-9_]{3,20}$').hasMatch(u)) return toast(context, 'Username: 3 to 20 letters, numbers or underscores.');
           await db.auth.signUp(email: e, password: pass.text, data: {'username': u});
@@ -98,24 +190,55 @@ class _AuthState extends State<AuthPage> {
 
   @override
   Widget build(BuildContext c) {
-    const labels = ['Sign in', 'Create account', 'Confirm email', 'Set new password'];
+    final cs = Theme.of(c).colorScheme;
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-            Row(children: [Container(width: 40, height: 40, alignment: Alignment.center, decoration: BoxDecoration(color: const Color(0xFF0E7C66), borderRadius: BorderRadius.circular(8)), child: const Text('K', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800))), const SizedBox(width: 12), Text('Kin', style: Theme.of(c).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700))]),
-            const SizedBox(height: 24),
-            if (mode == 1) ...[TextField(controller: user, decoration: const InputDecoration(labelText: 'Username')), const SizedBox(height: 12)],
-            TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
-            const SizedBox(height: 12),
-            if (mode >= 2) ...[TextField(controller: code, decoration: const InputDecoration(labelText: 'Code from email')), const SizedBox(height: 12)],
-            if (mode != 2) ...[TextField(controller: pass, obscureText: true, decoration: InputDecoration(labelText: mode == 3 ? 'New password' : 'Password')), const SizedBox(height: 16)],
-            FilledButton(onPressed: busy ? null : _go, child: Text(labels[mode])),
-            if (mode < 2) TextButton(onPressed: () => setState(() => mode = 1 - mode), child: Text(mode == 1 ? 'I already have an account' : 'Create an account')),
-            if (mode == 0) TextButton(onPressed: busy ? null : _forgot, child: const Text('Forgot password')),
-            if (mode >= 2) TextButton(onPressed: () => setState(() => mode = 0), child: const Text('Back to sign in')),
-          ]),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
+              TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.7, end: 1),
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutBack,
+                  builder: (_, v, w) => Align(alignment: Alignment.centerLeft, child: Transform.scale(scale: v, alignment: Alignment.centerLeft, child: w)),
+                  child: const KinLogo(size: 64)),
+              const SizedBox(height: 20),
+              AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(titles[mode], key: ValueKey(mode), style: Theme.of(c).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700))),
+              const SizedBox(height: 4),
+              Text('Posts and photos from people you follow.', style: TextStyle(color: cs.onSurfaceVariant)),
+              const SizedBox(height: 20),
+              AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.topCenter,
+                  child: Column(children: [
+                    if (mode == 1) ...[TextField(controller: user, autocorrect: false, decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email))), const SizedBox(height: 12)],
+                    TextField(controller: email, keyboardType: TextInputType.emailAddress, autocorrect: false, decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline))),
+                    const SizedBox(height: 12),
+                    if (mode >= 2) ...[TextField(controller: code, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Code from email', prefixIcon: Icon(Icons.pin_outlined))), const SizedBox(height: 12)],
+                    if (mode != 2) ...[
+                      TextField(
+                          controller: pass,
+                          obscureText: !show,
+                          decoration: InputDecoration(
+                              labelText: mode == 3 ? 'New password' : 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(tooltip: show ? 'Hide password' : 'Show password', onPressed: () => setState(() => show = !show), icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined)))),
+                      const SizedBox(height: 16)
+                    ],
+                  ])),
+              FilledButton(
+                  onPressed: busy ? null : _go,
+                  child: busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(labels[mode])),
+              const SizedBox(height: 4),
+              if (mode < 2) TextButton(onPressed: () => setState(() => mode = 1 - mode), child: Text(mode == 1 ? 'I already have an account' : 'Create an account')),
+              if (mode == 0) TextButton(onPressed: busy ? null : _forgot, child: const Text('Forgot password')),
+              if (mode >= 2) TextButton(onPressed: () => setState(() => mode = 0), child: const Text('Back to sign in')),
+            ]),
+          ),
         ),
       ),
     );
@@ -140,16 +263,20 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext c) {
     final wide = MediaQuery.of(c).size.width >= 700;
-    final pages = [Feed(key: ValueKey(rev)), const SearchPage(), const Inbox(), ProfilePage(userId: me)];
-    final body = Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: pages[i]));
+    final pages = [Feed(key: ValueKey(rev)), const SearchPage(), const Inbox(), ProfilePage(userId: me, embedded: true)];
+    final body = Center(
+        child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: AnimatedSwitcher(duration: const Duration(milliseconds: 180), child: KeyedSubtree(key: ValueKey('$i-$rev'), child: pages[i]))));
     return Scaffold(
+      appBar: AppBar(title: Row(children: [const KinLogo(size: 28), const SizedBox(width: 10), Text(_d[i].$3, style: const TextStyle(fontWeight: FontWeight.w700))])),
       floatingActionButton: i == 0
-          ? FloatingActionButton(
-              tooltip: 'New post',
+          ? FloatingActionButton.extended(
               onPressed: () async {
                 if (await Navigator.push<bool>(c, MaterialPageRoute(builder: (_) => const Compose())) == true) setState(() => rev++);
               },
-              child: const Icon(Icons.edit))
+              icon: const Icon(Icons.edit),
+              label: const Text('Post'))
           : null,
       bottomNavigationBar: wide
           ? null
@@ -167,7 +294,7 @@ class _ShellState extends State<Shell> {
               const VerticalDivider(width: 1),
               Expanded(child: body),
             ])
-          : SafeArea(child: body),
+          : body,
     );
   }
 }
@@ -208,16 +335,11 @@ class _FeedState extends State<Feed> {
         final f = await db.from('follows').select('followee_id').eq('follower_id', me);
         ids = [me, ...f.map((r) => r['followee_id'] as String)];
       }
-      final r = await db
-          .from('posts')
-          .select('*, profiles(username), likes(user_id), comments(count)')
-          .inFilter('user_id', ids)
-          .order('created_at', ascending: false)
-          .range(posts.length, posts.length + 19);
+      final r = await db.from('posts').select('*, profiles(username), likes(user_id), comments(count)').inFilter('user_id', ids).order('created_at', ascending: false).range(posts.length, posts.length + 19);
       posts = [...posts, ...r];
       more = r.length == 20;
     } catch (_) {
-      err = 'Could not load posts.';
+      err = 'Could not load posts. Pull down to retry.';
     }
     if (mounted) setState(() => loading = false);
   }
@@ -227,13 +349,10 @@ class _FeedState extends State<Feed> {
         onRefresh: () => load(reset: true),
         child: ListView(padding: const EdgeInsets.all(12), physics: const AlwaysScrollableScrollPhysics(), children: [
           if (widget.header != null) widget.header!,
-          for (final p in posts) PostCard(key: ValueKey(p['id']), p: p, onGone: () => setState(() => posts.remove(p))),
-          if (err != null) Padding(padding: const EdgeInsets.all(16), child: Text(err!)),
-          if (loading) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-          if (!loading && posts.isEmpty && err == null)
-            Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(widget.userId == null ? 'Your feed is empty. Find people in Search, or write your first post.' : 'No posts yet.')),
+          for (final p in posts) Reveal(key: ValueKey(p['id']), child: PostCard(p: p, onGone: () => setState(() => posts.remove(p)))),
+          if (err != null) Empty(Icons.cloud_off, err!),
+          if (loading && posts.isEmpty) const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
+          if (!loading && posts.isEmpty && err == null) Empty(Icons.dynamic_feed_outlined, widget.userId == null ? 'Your feed is empty.\nFind people in Search, or write your first post.' : 'No posts yet.'),
           if (!loading && more && posts.isNotEmpty) TextButton(onPressed: load, child: const Text('Load more')),
         ]),
       );
@@ -292,33 +411,38 @@ class _PostCardState extends State<PostCard> {
   Widget build(BuildContext c) {
     final own = p['user_id'] == me, name = p['profiles']['username'] as String;
     final cc = (p['comments'] as List).isEmpty ? 0 : p['comments'][0]['count'];
+    final cs = Theme.of(c).colorScheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(
-                child: InkWell(
-                    onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ProfilePage(userId: p['user_id']))),
-                    child: Text('@$name', style: const TextStyle(fontWeight: FontWeight.w600)))),
-            Text(stamp(p['created_at']), style: Theme.of(c).textTheme.bodySmall),
-            PopupMenuButton<String>(
-                onSelected: menu,
-                itemBuilder: (_) => [PopupMenuItem(value: own ? 'delete' : 'report', child: Text(own ? 'Delete' : 'Report'))]),
-          ]),
-          if ((p['body'] as String).isNotEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(p['body'])),
-          if (p['media_url'] != null)
-            ClipRRect(
+            InkWell(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(p['media_url'], fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => const Text('Image unavailable'))),
+                onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ProfilePage(userId: p['user_id']))),
+                child: Row(children: [Avatar(name), const SizedBox(width: 10), Text('@$name', style: const TextStyle(fontWeight: FontWeight.w600))])),
+            const Spacer(),
+            Text(stamp(p['created_at']), style: Theme.of(c).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+            PopupMenuButton<String>(onSelected: menu, itemBuilder: (_) => [PopupMenuItem(value: own ? 'delete' : 'report', child: Text(own ? 'Delete' : 'Report'))]),
+          ]),
+          if ((p['body'] as String).isNotEmpty) Padding(padding: const EdgeInsets.only(right: 8, top: 4, bottom: 6), child: Text(p['body'], style: const TextStyle(fontSize: 16, height: 1.4))),
+          if (p['media_url'] != null)
+            Padding(
+                padding: const EdgeInsets.only(right: 8, top: 4),
+                child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(p['media_url'], fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => const Padding(padding: EdgeInsets.all(16), child: Text('Image unavailable'))))),
           Row(children: [
-            IconButton(tooltip: liked ? 'Unlike' : 'Like', onPressed: like, icon: Icon(liked ? Icons.favorite : Icons.favorite_border, color: liked ? Colors.red.shade700 : null)),
+            IconButton(
+                tooltip: liked ? 'Unlike' : 'Like',
+                onPressed: like,
+                icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (w, a) => ScaleTransition(scale: a, child: w),
+                    child: Icon(liked ? Icons.favorite : Icons.favorite_border, key: ValueKey(liked), color: liked ? Colors.red.shade700 : null))),
             Text('$n'),
             const SizedBox(width: 8),
-            IconButton(
-                tooltip: 'Comments',
-                onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => CommentsPage(postId: p['id']))),
-                icon: const Icon(Icons.mode_comment_outlined)),
+            IconButton(tooltip: 'Comments', onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => CommentsPage(postId: p['id']))), icon: const Icon(Icons.mode_comment_outlined)),
             Text('$cc'),
           ]),
         ]),
@@ -335,7 +459,7 @@ class Compose extends StatefulWidget {
 
 class _ComposeState extends State<Compose> {
   final text = TextEditingController();
-  var img;
+  Uint8List? img;
   String ext = 'jpg';
   bool busy = false;
 
@@ -360,7 +484,7 @@ class _ComposeState extends State<Compose> {
       String? url;
       if (img != null) {
         final path = '$me/${DateTime.now().millisecondsSinceEpoch}.$ext';
-        await db.storage.from('media').uploadBinary(path, img, fileOptions: FileOptions(contentType: ext == 'jpg' ? 'image/jpeg' : 'image/$ext'));
+        await db.storage.from('media').uploadBinary(path, img!, fileOptions: FileOptions(contentType: ext == 'jpg' ? 'image/jpeg' : 'image/$ext'));
         url = db.storage.from('media').getPublicUrl(path);
       }
       await db.from('posts').insert({'body': t, 'media_url': url});
@@ -375,12 +499,26 @@ class _ComposeState extends State<Compose> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-        appBar: AppBar(title: const Text('New post'), actions: [TextButton(onPressed: busy ? null : post, child: const Text('Post'))]),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
-          TextField(controller: text, maxLines: 6, maxLength: 500, decoration: const InputDecoration(hintText: 'What is on your mind?')),
-          if (img != null) ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(img, height: 220, fit: BoxFit.cover)),
-          Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: pick, icon: const Icon(Icons.image_outlined), label: const Text('Add image'))),
+        appBar: AppBar(title: const Text('New post'), actions: [
+          Padding(padding: const EdgeInsets.only(right: 12), child: FilledButton(onPressed: busy ? null : post, child: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Post')))
         ]),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(padding: const EdgeInsets.all(16), children: [
+              TextField(controller: text, maxLines: 6, maxLength: 500, autofocus: true, decoration: const InputDecoration(hintText: 'What is on your mind?')),
+              AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  child: img == null
+                      ? const SizedBox(width: double.infinity)
+                      : Stack(children: [
+                          ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(img!, width: double.infinity, height: 240, fit: BoxFit.cover)),
+                          Positioned(top: 4, right: 4, child: IconButton.filledTonal(tooltip: 'Remove image', onPressed: () => setState(() => img = null), icon: const Icon(Icons.close))),
+                        ])),
+              Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: pick, icon: const Icon(Icons.image_outlined), label: const Text('Add image'))),
+            ]),
+          ),
+        ),
       );
 }
 
@@ -436,16 +574,24 @@ class _CommentsState extends State<CommentsPage> {
                   child: rows == null
                       ? const Center(child: CircularProgressIndicator())
                       : rows!.isEmpty
-                          ? const Center(child: Text('No comments yet.'))
+                          ? const Center(child: Empty(Icons.mode_comment_outlined, 'No comments yet.'))
                           : ListView(children: [
-                              for (final r in rows!) ListTile(title: Text('@${r['profiles']['username']}'), subtitle: Text(r['body']), trailing: Text(stamp(r['created_at']), style: Theme.of(c).textTheme.bodySmall))
+                              for (final r in rows!)
+                                Reveal(
+                                    key: ValueKey(r['id']),
+                                    child: ListTile(
+                                        leading: Avatar(r['profiles']['username']),
+                                        title: Text('@${r['profiles']['username']}'),
+                                        subtitle: Text(r['body']),
+                                        trailing: Text(stamp(r['created_at']), style: Theme.of(c).textTheme.bodySmall)))
                             ])),
               SafeArea(
                   child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: Row(children: [
                         Expanded(child: TextField(controller: text, maxLength: 300, decoration: const InputDecoration(hintText: 'Add a comment', counterText: ''), onSubmitted: (_) => send())),
-                        IconButton(tooltip: 'Send', onPressed: send, icon: const Icon(Icons.send)),
+                        const SizedBox(width: 8),
+                        IconButton.filled(tooltip: 'Send', onPressed: send, icon: const Icon(Icons.send)),
                       ]))),
             ]),
           ),
@@ -478,19 +624,26 @@ class _SearchState extends State<SearchPage> {
         Padding(padding: const EdgeInsets.all(12), child: TextField(onSubmitted: run, textInputAction: TextInputAction.search, decoration: const InputDecoration(hintText: 'Search usernames', prefixIcon: Icon(Icons.search)))),
         Expanded(
             child: rows == null
-                ? const Center(child: Text('Search for people by username.'))
+                ? const Center(child: Empty(Icons.search, 'Search for people by username.'))
                 : rows!.isEmpty
-                    ? const Center(child: Text('No users found.'))
+                    ? const Center(child: Empty(Icons.person_search_outlined, 'No users found.'))
                     : ListView(children: [
                         for (final r in rows!)
-                          ListTile(title: Text('@${r['username']}'), subtitle: Text(r['bio'], maxLines: 1), onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ProfilePage(userId: r['id']))))
+                          Reveal(
+                              key: ValueKey(r['id']),
+                              child: ListTile(
+                                  leading: Avatar(r['username']),
+                                  title: Text('@${r['username']}'),
+                                  subtitle: Text(r['bio'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ProfilePage(userId: r['id'])))))
                       ])),
       ]);
 }
 
 class ProfilePage extends StatefulWidget {
   final String userId;
-  const ProfilePage({super.key, required this.userId});
+  final bool embedded;
+  const ProfilePage({super.key, required this.userId, this.embedded = false});
   @override
   State<ProfilePage> createState() => _ProfileState();
 }
@@ -557,35 +710,38 @@ class _ProfileState extends State<ProfilePage> {
     }
   }
 
+  Widget _head(BuildContext c, Map<String, dynamic> p) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Avatar(p['username'], r: 30),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('@${p['username']}', style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)), Text('$followers followers  |  $following following', style: TextStyle(color: Theme.of(c).colorScheme.onSurfaceVariant))])),
+            ]),
+            if ((p['bio'] as String).isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(p['bio'])),
+            const SizedBox(height: 12),
+            if (own)
+              Wrap(spacing: 8, children: [
+                OutlinedButton.icon(onPressed: editBio, icon: const Icon(Icons.edit_outlined), label: const Text('Edit bio')),
+                OutlinedButton.icon(onPressed: db.auth.signOut, icon: const Icon(Icons.logout), label: const Text('Sign out')),
+              ])
+            else
+              Row(children: [
+                Expanded(child: FilledButton(onPressed: toggleFollow, child: Text(isFollowing ? 'Unfollow' : 'Follow'))),
+                const SizedBox(width: 8),
+                Expanded(child: OutlinedButton(onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ChatPage(otherId: widget.userId, name: p['username']))), child: const Text('Message'))),
+              ]),
+          ]),
+        ),
+      );
+
   @override
   Widget build(BuildContext c) {
     final p = prof;
-    return Scaffold(
-      appBar: AppBar(title: Text(p == null ? '' : '@${p['username']}'), actions: [
-        if (own && p != null) IconButton(tooltip: 'Edit bio', onPressed: editBio, icon: const Icon(Icons.edit_outlined)),
-        if (own) IconButton(tooltip: 'Sign out', onPressed: db.auth.signOut, icon: const Icon(Icons.logout)),
-      ]),
-      body: p == null
-          ? const Center(child: CircularProgressIndicator())
-          : Feed(
-              userId: widget.userId,
-              header: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  if ((p['bio'] as String).isNotEmpty) Text(p['bio']),
-                  const SizedBox(height: 8),
-                  Text('$followers followers   $following following', style: Theme.of(c).textTheme.bodyMedium),
-                  if (!own)
-                    Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(children: [
-                          FilledButton(onPressed: toggleFollow, child: Text(isFollowing ? 'Unfollow' : 'Follow')),
-                          const SizedBox(width: 8),
-                          OutlinedButton(onPressed: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ChatPage(otherId: widget.userId, name: p['username']))), child: const Text('Message')),
-                        ])),
-                ]),
-              )),
-    );
+    final body = p == null ? const Center(child: CircularProgressIndicator()) : Feed(userId: widget.userId, header: _head(c, p));
+    if (widget.embedded) return body;
+    return Scaffold(appBar: AppBar(title: Text(p == null ? '' : '@${p['username']}')), body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: body)));
   }
 }
 
@@ -611,7 +767,7 @@ class _InboxState extends State<Inbox> {
       for (final r in m) {
         last.putIfAbsent(r['sender_id'] == me ? r['recipient_id'] : r['sender_id'], () => r);
       }
-      final ps = last.isEmpty ? [] : await db.from('profiles').select('id, username').inFilter('id', last.keys.toList());
+      final ps = last.isEmpty ? <Map<String, dynamic>>[] : await db.from('profiles').select('id, username').inFilter('id', last.keys.toList());
       if (mounted) setState(() => rows = [for (final p in ps) {...p, 'last': last[p['id']]!['body']}]);
     } catch (e) {
       if (mounted) {
@@ -625,12 +781,13 @@ class _InboxState extends State<Inbox> {
   Widget build(BuildContext c) => rows == null
       ? const Center(child: CircularProgressIndicator())
       : rows!.isEmpty
-          ? const Center(child: Text('No conversations. Open a profile and tap Message.'))
+          ? const Center(child: Empty(Icons.chat_bubble_outline, 'No conversations yet.\nOpen a profile and tap Message.'))
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(children: [
                 for (final r in rows!)
                   ListTile(
+                      leading: Avatar(r['username']),
                       title: Text('@${r['username']}'),
                       subtitle: Text(r['last'], maxLines: 1, overflow: TextOverflow.ellipsis),
                       onTap: () async {
@@ -663,45 +820,54 @@ class _ChatState extends State<ChatPage> {
   }
 
   @override
-  Widget build(BuildContext c) => Scaffold(
-        appBar: AppBar(title: Text('@${widget.name}')),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Column(children: [
-              Expanded(
-                  child: StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: stream,
-                      builder: (c, s) {
-                        if (s.hasError) return const Center(child: Text('Could not load messages.'));
-                        if (!s.hasData) return const Center(child: CircularProgressIndicator());
-                        final m = s.data!.where((r) => (r['sender_id'] == me && r['recipient_id'] == widget.otherId) || (r['sender_id'] == widget.otherId && r['recipient_id'] == me)).toList();
-                        if (m.isEmpty) return const Center(child: Text('No messages yet.'));
-                        return ListView.builder(
-                            reverse: true,
-                            padding: const EdgeInsets.all(12),
-                            itemCount: m.length,
-                            itemBuilder: (c, i) {
-                              final mine = m[i]['sender_id'] == me;
-                              return Align(
-                                  alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                                  child: Container(
-                                      margin: const EdgeInsets.symmetric(vertical: 3),
-                                      padding: const EdgeInsets.all(10),
-                                      constraints: const BoxConstraints(maxWidth: 420),
-                                      decoration: BoxDecoration(color: mine ? Theme.of(c).colorScheme.primaryContainer : Theme.of(c).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
-                                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(m[i]['body']), Text(stamp(m[i]['created_at']), style: Theme.of(c).textTheme.labelSmall)])));
-                            });
-                      })),
-              SafeArea(
-                  child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(children: [
-                        Expanded(child: TextField(controller: text, maxLength: 1000, decoration: const InputDecoration(hintText: 'Message', counterText: ''), onSubmitted: (_) => send())),
-                        IconButton(tooltip: 'Send', onPressed: send, icon: const Icon(Icons.send)),
-                      ]))),
-            ]),
-          ),
+  Widget build(BuildContext c) {
+    final cs = Theme.of(c).colorScheme;
+    return Scaffold(
+      appBar: AppBar(title: Row(children: [Avatar(widget.name, r: 16), const SizedBox(width: 10), Text('@${widget.name}')])),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Column(children: [
+            Expanded(
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: stream,
+                    builder: (c, s) {
+                      if (s.hasError) return const Center(child: Empty(Icons.cloud_off, 'Could not load messages.'));
+                      if (!s.hasData) return const Center(child: CircularProgressIndicator());
+                      final m = s.data!.where((r) => (r['sender_id'] == me && r['recipient_id'] == widget.otherId) || (r['sender_id'] == widget.otherId && r['recipient_id'] == me)).toList();
+                      if (m.isEmpty) return const Center(child: Empty(Icons.chat_bubble_outline, 'No messages yet. Say hello.'));
+                      return ListView.builder(
+                          reverse: true,
+                          padding: const EdgeInsets.all(12),
+                          itemCount: m.length,
+                          itemBuilder: (c, i) {
+                            final mine = m[i]['sender_id'] == me;
+                            return Reveal(
+                                key: ValueKey(m[i]['id']),
+                                child: Align(
+                                    alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                                    child: Container(
+                                        margin: const EdgeInsets.symmetric(vertical: 3),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        constraints: const BoxConstraints(maxWidth: 420),
+                                        decoration: BoxDecoration(color: mine ? cs.primary : cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+                                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                          Text(m[i]['body'], style: TextStyle(color: mine ? cs.onPrimary : cs.onSurface)),
+                                          Text(stamp(m[i]['created_at']), style: TextStyle(fontSize: 11, color: mine ? cs.onPrimary.withAlpha(190) : cs.onSurfaceVariant)),
+                                        ]))));
+                          });
+                    })),
+            SafeArea(
+                child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(children: [
+                      Expanded(child: TextField(controller: text, maxLength: 1000, decoration: const InputDecoration(hintText: 'Message', counterText: ''), onSubmitted: (_) => send())),
+                      const SizedBox(width: 8),
+                      IconButton.filled(tooltip: 'Send', onPressed: send, icon: const Icon(Icons.send)),
+                    ]))),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }
