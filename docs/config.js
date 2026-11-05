@@ -1,1 +1,1 @@
-const CONFIG = { url: 'https://gkpjicnihgicrsndjltl.supabase.co', key: 'PASTE_YOUR_ANON_PUBLIC_KEY_HERE' };
+const CONFIG = { url: 'https://gkpjicnihgicrsndjltl.supabase.co', key: 'sb_publishable_cx1YkMueniFpjQJTk-J7AQ_64LGWzos' };

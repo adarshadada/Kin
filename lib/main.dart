@@ -440,7 +440,7 @@ class StoryViewer extends StatefulWidget {
 }
 
 class _StoryViewerState extends State<StoryViewer> with SingleTickerProviderStateMixin {
-  late final AnimationController ctl = AnimationController(vsync: this, duration: const Duration(seconds: 5))
+  late final AnimationController ctl = AnimationController(vsync: this, duration: const Duration(seconds: 12))
     ..addStatusListener((s) {
       if (s == AnimationStatus.completed) next();
     });
