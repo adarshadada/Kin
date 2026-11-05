@@ -1,0 +1,28 @@
+:root{--bg:#f7f7f4;--card:#fff;--ink:#17201d;--mute:#5f6b66;--line:#e2e5e0;--acc:#0e7c66;--on:#fff;--r:8px}
+@media (prefers-color-scheme:dark){:root{--bg:#101513;--card:#171e1b;--ink:#e8eeea;--mute:#98a59f;--line:#26302c;--acc:#2fb596;--on:#08201a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+.bar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-size:20px}
+nav{display:flex;gap:4px}
+nav button{background:none;border:0;padding:8px 12px;border-radius:var(--r);cursor:pointer;color:var(--mute)}
+nav button[aria-current=true]{color:var(--ink);background:var(--bg)}
+main{max-width:640px;margin:0 auto;padding:16px}
+.card,.auth{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.auth{max-width:380px;margin:12vh auto 0}
+.auth .brand{margin-bottom:16px;font-size:28px}
+label{display:block;font-size:14px;color:var(--mute);margin:12px 0 4px}
+input[type=text],input[type=email],input[type=password],textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.btn{background:var(--acc);color:var(--on);border:0;padding:10px 16px;border-radius:var(--r);font-weight:600;cursor:pointer}
+.btn.ghost{background:none;color:var(--acc);border:1px solid var(--line)}
+.link{background:none;border:0;color:var(--acc);cursor:pointer;padding:8px 0}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.meta{color:var(--mute);font-size:14px}
+.card img.m{width:100%;border-radius:var(--r);margin-top:8px;display:block}
+.act{background:none;border:0;cursor:pointer;color:var(--mute);display:inline-flex;gap:6px;align-items:center;padding:6px 0;margin-right:12px}
+.act.on{color:#b3261e}
+.empty{color:var(--mute);text-align:center;padding:24px}
+#msg{color:#b3261e;min-height:24px;margin:8px 0 0}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r)}
